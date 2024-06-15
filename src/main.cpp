@@ -15,6 +15,11 @@
 #define SAMPLING_FREQUENCY 44100
 #define SAMPLES_PER_FFT 2048
 
+// Frequency range to trigger fish movement. Described as a voice frequency range but really
+// a lot of instrumental music will fall in this range too
+#define VOICE_MIN_FREQ_HZ 300
+#define VOICE_MAX_FREQ_HZ 3000
+
 // I2S pins
 #define I2S_BCLK_PIN 18
 #define I2S_WS_PIN 19
@@ -121,21 +126,38 @@ void loop()
     vReal[i] = audioTransferBuffer[i];
   }
   xSemaphoreGive(mutex);
+
   // Zero out the imaginary data buffer, leaving only the real data buffer written to
   // by the bluetooth-to-I2S callback
   for (int i = 0; i < SAMPLES_PER_FFT; i++)
   {
     vImag[i] = 0.0;
   }
-  // Compute the FFT
+
+  // Compute the FFT. Data will be stored in vReal
   fft.windowing(FFTWindow::Hamming, FFTDirection::Forward);
   fft.compute(FFTDirection::Forward);
   fft.complexToMagnitude();
-  // Do we have some power in the FFT?
-  boolean receivingAudio = !isnan(fft.majorPeak());
 
-  // Work out if we are receiving audio. If so, stick the fish head out and flap the mouth,
-  // if not, then rest both motors.
+  // Only first half of vReal contains FFT bins, per Nyquist
+  uint16_t numBins = SAMPLES_PER_FFT >> 1;
+
+  // Do we have some power in the FFT in the required band? Iterate through the FFT bins,
+  // finding ones that are within the band we are looking for, and if any power is present,
+  // report that we are receiving audio.
+  boolean receivingAudio = false;
+  for (uint16_t i = 0; i < numBins; i++)
+  {
+    double freq = ((i * 1.0 * SAMPLING_FREQUENCY) / SAMPLES_PER_FFT);
+    double power = vReal[i];
+    if (freq >= VOICE_MIN_FREQ_HZ && freq <= VOICE_MAX_FREQ_HZ && power > 0.0) {
+      receivingAudio = true;
+      break;
+    }
+  }
+
+  // If we are receiving audio, stick the fish head out and flap the mouth.
+  // If not, then rest both motors.
   if (receivingAudio)
   {
     headOut();
