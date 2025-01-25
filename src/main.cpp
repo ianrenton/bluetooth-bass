@@ -21,9 +21,9 @@
 #define VOICE_MAX_FREQ_HZ 3000
 
 // I2S pins
-#define I2S_BCLK_PIN 18
-#define I2S_WS_PIN 19
-#define I2S_DOUT_PIN 21
+#define I2S_BCLK_PIN 19
+#define I2S_WS_PIN 21
+#define I2S_DOUT_PIN 18
 
 // Motor control pins
 #define HEADTAIL_MOTOR_PIN_1 12
